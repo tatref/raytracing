@@ -50,6 +50,7 @@ impl Camera {
 }
 
 
+
 struct Sphere {
     ball: Ball<f32>,
     isometry: Isometry<f32>,
@@ -160,8 +161,9 @@ fn main() {
 
     let objects = vec![
         Sphere::new(Ball::new(1.0), Isometry3::translation(20., 0., 0.), image::Rgb([255., 0., 0.])),
-        Sphere::new(Ball::new(2.0), Isometry3::translation(20., 10., 0.), image::Rgb([255., 255., 255.])),
+        Sphere::new(Ball::new(2.0), Isometry3::translation(20., 10., 0.), image::Rgb([0., 0., 255.])),
         Sphere::new(Ball::new(8.0), Isometry3::translation(20., 0., 10.), image::Rgb([255., 255., 0.])),
+        Sphere::new(Ball::new(20.0), Isometry3::translation(50., 0., 0.), image::Rgb([255., 255., 255.])),
     ];
     let scene = Scene {
         camera,
