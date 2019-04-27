@@ -122,11 +122,14 @@ impl Scene {
             Some((inter, color)) => {
                 let mut coeff = 0.;
                 let intersection_point = ray.origin + ray.dir * inter.toi;
+
                 for light in &self.lights {
-                    let vec_to_light = (light.position - intersection_point).normalize();
-                    let contribution = &inter.normal.dot(&vec_to_light);
-                    if *contribution > 0. {
-                        coeff += contribution;
+                    if self.point_can_see_point(&intersection_point, &light.position) {
+                        let vec_to_light = (light.position - intersection_point).normalize();
+                        let contribution = &inter.normal.dot(&vec_to_light);
+                        if *contribution > 0. {
+                            coeff += contribution;
+                        }
                     }
                 }
                 let color = image::Rgb([color[0] * coeff, color[1] * coeff, color[2] * coeff]);
@@ -134,6 +137,19 @@ impl Scene {
             },
             None => return self.background_color,
         }
+    }
+
+    fn point_can_see_point(&self, p1: &Point3<f32>, p2: &Point3<f32>) -> bool {
+        let ray = Ray::new(p1.clone(), p2 - p1);
+
+        for obj in &self.objects {
+            match obj.ball.toi_with_ray(&obj.isometry, &ray, true) {
+                None => (),
+                Some(t) if t > 0.0001 => return false,
+                _ => (),
+            }
+        }
+        true
     }
 
 }  // end impl Scene
@@ -183,10 +199,11 @@ fn main() {
         Sphere::new(Ball::new(2.0), Isometry3::translation(20., 10., 0.), image::Rgb([0., 0., 255.])),
         Sphere::new(Ball::new(8.0), Isometry3::translation(20., 0., 10.), image::Rgb([255., 255., 0.])),
         Sphere::new(Ball::new(20.0), Isometry3::translation(50., 0., 0.), image::Rgb([255., 255., 255.])),
+        Sphere::new(Ball::new(10000.0), Isometry3::translation(0., -10020., 0.), image::Rgb([255., 255., 255.])),
     ];
 
     let lights = vec![
-        Light::new(Point3::new(0., 10., 0.), 1.0),
+        Light::new(Point3::new(0., 100., 0.), 1.0),
     ];
 
     let background_color: image::Rgb<f32> = image::Rgb([0., 0., 0.]);
