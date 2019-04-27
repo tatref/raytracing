@@ -50,6 +50,18 @@ impl Camera {
 }
 
 
+struct Light {
+    position: Point3<f32>,
+    intensity: f32,
+}
+impl Light {
+    fn new(position: Point3<f32>, intensity: f32) -> Self {
+        Self {
+            position,
+            intensity,
+        }
+    }
+}
 
 struct Sphere {
     ball: Ball<f32>,
@@ -70,6 +82,7 @@ impl Sphere {
 struct Scene {
     camera: Camera,
     objects: Vec<Sphere>,
+    lights: Vec<Light>,
 }
 impl Scene {
     fn render(&self) -> image::ImageBuffer<image::Rgb<f32>, Vec<f32>> {
@@ -97,7 +110,15 @@ impl Scene {
                 intersections.sort_unstable_by(|(inter1, _color1), (inter2, _color2)| inter1.toi.partial_cmp(&inter2.toi).unwrap());
                 match intersections.get(0) {
                     Some((inter, color)) => {
-                        let coeff = 1.0; //ray.dir.dot(&inter.normal);
+                        let mut coeff = 0.;
+                        let intersection_point = ray.origin + ray.dir * inter.toi;
+                        for light in &self.lights {
+                            let vec_to_light = (light.position - intersection_point).normalize();
+                            let contribution = &inter.normal.dot(&vec_to_light);
+                            if *contribution > 0. {
+                                coeff += contribution;
+                            }
+                        }
                         let final_color = image::Rgb([color[0] * coeff, color[1] * coeff, color[2] * coeff]);
                         *imgbuf.get_pixel_mut(x as u32, y as u32) = final_color;
                     },
@@ -165,9 +186,15 @@ fn main() {
         Sphere::new(Ball::new(8.0), Isometry3::translation(20., 0., 10.), image::Rgb([255., 255., 0.])),
         Sphere::new(Ball::new(20.0), Isometry3::translation(50., 0., 0.), image::Rgb([255., 255., 255.])),
     ];
+
+    let lights = vec![
+        Light::new(Point3::new(0., 10., 0.), 1.0),
+    ];
+
     let scene = Scene {
         camera,
         objects,
+        lights,
     };
 
     let imgbuf = scene.render();
