@@ -83,11 +83,10 @@ struct Scene {
     camera: Camera,
     objects: Vec<Sphere>,
     lights: Vec<Light>,
+    background_color: image::Rgb<f32>,
 }
 impl Scene {
     fn render(&self) -> image::ImageBuffer<image::Rgb<f32>, Vec<f32>> {
-        let back_color: image::Rgb<f32> = image::Rgb([0., 0., 0.]);
-
         let mut imgbuf = image::ImageBuffer::new(self.camera.res.0 as u32, self.camera.res.1 as u32);
 
         let clock = std::time::Instant::now();
@@ -97,34 +96,9 @@ impl Scene {
                 let ray = self.camera.get_ray(x, y);
                 let y = self.camera.res.1 - y -1;  // flip vertficaly
 
-                *imgbuf.get_pixel_mut(x as u32, y as u32) = back_color;
-
                 //TODO
-                //let color = self.trace_ray(&ray);
-
-                let mut intersections: Vec<_> = self.objects.iter().filter_map(
-                    |s| s.ball.toi_and_normal_with_ray(&s.isometry, &ray, true).map(|x| (x, s.color))
-                    //|s| ray.intersect_normal(&s).map(|(d, n)| (d, n, s.color))
-                ).collect();
-
-                intersections.sort_unstable_by(|(inter1, _color1), (inter2, _color2)| inter1.toi.partial_cmp(&inter2.toi).unwrap());
-                match intersections.get(0) {
-                    Some((inter, color)) => {
-                        let mut coeff = 0.;
-                        let intersection_point = ray.origin + ray.dir * inter.toi;
-                        for light in &self.lights {
-                            let vec_to_light = (light.position - intersection_point).normalize();
-                            let contribution = &inter.normal.dot(&vec_to_light);
-                            if *contribution > 0. {
-                                coeff += contribution;
-                            }
-                        }
-                        let final_color = image::Rgb([color[0] * coeff, color[1] * coeff, color[2] * coeff]);
-                        *imgbuf.get_pixel_mut(x as u32, y as u32) = final_color;
-                    },
-                    None => (),
-                }
-
+                let color = self.trace_ray(&ray);
+                *imgbuf.get_pixel_mut(x as u32, y as u32) = color;
 
 
                 if x < 10 && y < 10 {
@@ -138,7 +112,31 @@ impl Scene {
         imgbuf
     }
 
-}
+    fn trace_ray(&self, ray: &Ray<f32>) -> image::Rgb<f32> {
+        let mut intersections: Vec<_> = self.objects.iter().filter_map(
+            |s| s.ball.toi_and_normal_with_ray(&s.isometry, &ray, true).map(|x| (x, s.color))
+        ).collect();
+
+        intersections.sort_unstable_by(|(inter1, _color1), (inter2, _color2)| inter1.toi.partial_cmp(&inter2.toi).unwrap());
+        match intersections.get(0) {
+            Some((inter, color)) => {
+                let mut coeff = 0.;
+                let intersection_point = ray.origin + ray.dir * inter.toi;
+                for light in &self.lights {
+                    let vec_to_light = (light.position - intersection_point).normalize();
+                    let contribution = &inter.normal.dot(&vec_to_light);
+                    if *contribution > 0. {
+                        coeff += contribution;
+                    }
+                }
+                let color = image::Rgb([color[0] * coeff, color[1] * coeff, color[2] * coeff]);
+                return color;
+            },
+            None => return self.background_color,
+        }
+    }
+
+}  // end impl Scene
 
 fn tone_map(img: &image::ImageBuffer<image::Rgb<f32>, Vec<f32>> ) -> image::ImageBuffer<image::Rgb<u8>, Vec<u8>> {
     let clock = std::time::Instant::now();
@@ -191,10 +189,13 @@ fn main() {
         Light::new(Point3::new(0., 10., 0.), 1.0),
     ];
 
+    let background_color: image::Rgb<f32> = image::Rgb([0., 0., 0.]);
+
     let scene = Scene {
         camera,
         objects,
         lights,
+        background_color,
     };
 
     let imgbuf = scene.render();
